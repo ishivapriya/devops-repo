@@ -1,0 +1,245 @@
+Accessing a Remote Kubeadm Cluster from Your Local Machine
+---->for complete guide refer to k21academy documentation on google-->how to access remote kubeadm  
+
+
+
+kops localhost connection:  10/10/25
+-------------------------------------
+---->working with kubectl on controller does not work in real time environment, so we use localhost kops--->where we connect our local host server to the controller cluster
+------------------------------------------------------------------------------- 
+
+1  hostnamectl set-hostname local.example.com
+    2  bash
+    3  curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+    4  curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
+    5  echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
+    6  sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+    7  chmod +x kubectl
+    8  mkdir -p ~/.local/bin
+    9  mv ./kubectl ~/.local/bin/kubectl
+   10  kubectl version --client
+   11  sudo apt-get install -y openssh-server
+   12  vi /etc/ssh/sshd_config
+   13  systemctl restart sshd
+   14  mkdir .kube
+
+
+
+// on controller cluster
+1.  scp /etc/kubernetes/admin.conf username@ip_address_of_localhost:/root/.kube
+2. ssh-keygen
+3. cat ------
+--->copy the key
+
+
+
+
+//on localhost 
+
+
+
+   16  vim .ssh/authorized_keys   ---->paste the key
+
+//if it doesnot work
+///on controller
+
+1. cat /etc/kubernetes/admin.conf----->coy the entire thing
+
+
+///on local-host
+   17  cd /root/.kube
+   18  vim admin.conf----->paste
+   19  cd .kube
+   20  ls
+   21  export KUBECONFIG=~/.kube/admin.conf
+   22  kubectl config view
+   23  kubectl get nodes
+   24  apt install unzip -y
+   25  curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+   26  unzip awscliv2.zip
+   27  sudo ./aws/install
+   28  kubectl version --client
+   29  curl -Lo kops https://github.com/kubernetes/kops/releases/download/$(curl -s https://api.github.com/repos/kubernetes/kops/releases/latest | grep tag_name | cut -d '"' -f 4)/kops-linux-amd64
+   30  chmod +x ./kops
+   31  sudo mv ./kops /usr/local/bin/
+   32  kops version
+   33  aws s3 mb s3://dev.k8s.sanjayskv.in
+   34  aws s3 mb s3://dev.k8s.local-bucket2512.in
+   35  aws s3 ls
+   36  export KOPS_STATE_STORE=s3://dev.k8s.sanjayskv.in
+   37  cat  /root/.ssh/id_rsa.pub
+   38  kops create cluster --cloud=aws --zones=us-east-1 --name=
+   39  dev.k8s.local-bucket2512.in --dns-zone=shiva.com --dns private
+   40  kops create cluster --cloud=aws --zones=us-east-1 --name=
+   41  dev.k8s.local-bucket2512.in --dns-zone=shiva.com --dns private
+   42  kops create cluster --cloud=aws --zones=us-east-1 --name=dev.k8s.local-bucket2512.in --dns-zone=shiva.com --dns private
+   43  aws configure
+   44  kops create cluster --cloud=aws --zones=us-east-1 --name=dev.k8s.local-bucket2512.in --dns-zone=shiva.com --dns private
+   45  export KOPS_STATE_STORE=s3://dev.k8s.local-bucket2512.in
+   46  kops create cluster --cloud=aws --zones=us-east-1 --name=dev.k8s.local-bucket2512.in --dns-zone=shiva.com --dns private
+   47  kops create cluster --cloud=aws --zones=us-east-1a --name=dev.k8s.local-bucket2512.in --dns-zone=shiva.com --dns private
+   48  kops update cluster dev.k8s.local-bucket2512.in --yes --admin
+   49  kops validate cluster
+   50  kubectl get nodes
+   51  kops validate cluster --wait 10m
+   52  kubectl exec busybox -- nslookup api.ucla.dt-api-k8s.com
+   53  kops update cluster dev.k8s.local-bucket2512.in --yes --admin
+   54  kops rolling-update cluster
+   55  kops rolling-update cluster --cloudonly
+   56  kubectl get nodes
+   57  kubectl run sample-nginx --image=nginx --replicas=2 --port=80
+   58  kubectl run --help
+   59  kubectl options
+   60  kubectl run sample-nginx --image=nginx --replicas=2 --port=80
+   61  kubectl expose deployment sample-nginx --port=80 --type=LoadBalancer
+   62  history
+
+
+----------------------------------------------------------------------------------------------
+
+
+
+---->Setup Kubernetes (K8s) Cluster on AWS
+----->Create Ubuntu EC2 instance
+
+install AWSCLI
+apt install unzip -y
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+
+
+Install kubectl
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+kubectl version --client
+
+INstall kops
+
+curl -Lo kops https://github.com/kubernetes/kops/releases/download/$(curl -s https://api.github.com/repos/kubernetes/kops/releases/latest | grep tag_name | cut -d '"' -f 4)/kops-linux-amd64
+chmod +x ./kops
+sudo mv ./kops /usr/local/bin/
+
+Create an IAM user/role with Route53, EC2, IAM and S3 full access
+
+Attach IAM role to ubuntu server
+
+Note: If you create IAM user with programmatic access then provide Access keys.
+  aws configure
+Install kops on ubuntu instance:
+
+ curl -LO https://github.com/kubernetes/kops/releases/download/$(curl -s https://api.github.com/repos/kubernetes/kops/releases/latest | grep tag_name | cut -d '"' -f 4)/kops-linux-amd64
+ chmod +x kops-linux-amd64
+ sudo mv kops-linux-amd64 /usr/local/bin/kops
+ sudo mv kops-linux-amd64 /usr/local/bin/kops /bin/
+ 
+To check Kops Version
+  kops version 
+
+Create a Route53 private hosted zone (you can create Public hosted zone if you have a domain)
+
+create an S3 bucket
+
+ aws s3 mb s3://dev.k8s.sanjayskv.in
+To Check Bucket: aws s3 ls
+Expose environment variable:
+
+ export KOPS_STATE_STORE=s3://dev.k8s.sanjayskv.in
+Create sshkeys before creating cluster
+
+ ssh-keygen
+Create kubernetes cluster definitions on S3 bucket
+
+ kops create cluster --cloud=aws --zones=ap-southeast-1b --name=dev.k8s.sanjayskv.in --dns-zone=sanjayskv.in --dns private
+Create kubernetes cluser
+
+  kops update cluster dev.k8s.sanjayskv.in --yes --admin
+Validate your cluster
+
+ kops validate cluster
+
+To list nodes
+
+  kubectl get nodes 
+Deploying Nginx container on Kubernetes
+Deploying Nginx Container
+
+  kubectl run sample-nginx --image=nginx --replicas=2 --port=80
+  kubectl get pods
+  kubectl get deployments
+Expose the deployment as service. This will create an ELB in front of those 2 containers and allow us to publicly access them:
+
+ kubectl expose deployment sample-nginx --port=80 --type=LoadBalancer
+ kubectl get services -o wide
+To delete cluster
+
+ kops delete cluster dev.k8s.sanjayskv.in --yes
+
+######################################################################################################
+
+
+
+
+
+
+
+#################################################################################################################
+Host EKS CLUSTER via EKSCTL
+#################################################################################################################
+
+--->launch an instance--->ubuntu
+---->connect and set hostname
+----->create iam role---->attach amazonec2containerRegistry,EKSpolicy and IAM full access 
+----->and attach policy to the ec2 instance
+----->create user--->add administratorAcess--->create accesskeys
+
+ apt-get update -y
+ apt install unzip -y
+ curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+ unzip awscliv2.zip
+ sudo ./aws/install
+ aws configure   ---->paste the keys---->us-east-1
+ ---->Install EKS Tool
+ curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+ 
+ sudo mv /tmp/eksctl /usr/local/bin
+ eksctl version
+ 
+---->Install Kubectl
+ curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+ 
+ sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl 
+ kubectl version --client
+ ssh-keygen
+ 
+--->Create EKS Cluster
+--->make csome changes in below cmd,--region-code as us-east-1, for id1 and id2 got to vpc on aws-->subnets-->and copy 2 subnet ids
+ eksctl create cluster --name my-cluster --region region-code --version 1.32 --vpc-public-subnets subnet-ExampleID1,subnet-ExampleID2 --without-nodegroup
+
+kubectl get nodes--->but the nodes are not created yet
+---->the cluster is created in eks but the nodes are not created yet-->can see the cluster on aws-->eks
+##############################################################################################################################
+ ##Create a Node Group##
+##############################################################################################################################
+ eksctl create nodegroup \
+  --cluster my-cluster \
+  --region us-east-1 \
+  --name my-node-group \
+  --node-ami-family Ubuntu2204 \
+  --node-type t3.small \
+  --subnet-ids subnet-086ced1a84c94a342,subnet-01695faa5e0e61d97 \   ---->change subnet ids(use the same as pasted above)
+  --nodes 3 \
+  --nodes-min 2 \
+  --nodes-max 4 \
+  --ssh-access \
+  --ssh-public-key /root/.ssh/id_rsa.pub
+
+or you can make cluster in this way
+################################################################################################################################
+ eksctl create cluster --name milestone-2 --region us-east-1 --version 1.32 --node-type t2.small --nodes 3 --nodes-min 2 --nodes-max 4 --ssh-access --ssh-public-key /root/.ssh/id_rsa.pub
+
+
+
+
+ When You want to delete cluster
+ eksctl delete cluster --name my-cluster

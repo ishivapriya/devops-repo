@@ -1,0 +1,219 @@
+24-10-25
+#####################################################################################
+EC-2 instance creation:
+#####################################################################################
+
+
+data "aws_ami" "example" {
+  most_recent = true
+  owners      = ["amazon"]
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+  filter {
+    name   = "name"
+    values = ["al2023-ami-2023*"]
+  }
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+}
+
+resource "aws_instance" "example" {
+  ami           = data.aws_ami.example.id
+  instance_type = "t3.micro"
+  tags = {
+    Name = "hello-world"
+  }
+}
+
+
+################################################################################################################
+
+VPC:
+
+##############################################################################################################
+
+provider "aws" {
+  region = "us-east-1"
+
+}
+resource "aws_vpc" "prod-vpc" {
+  cidr_block = "10.0.0.0/16"
+}
+
+##internet gateway code
+resource "aws_internet_gateway" "test-igw" {
+  vpc_id = aws_vpc.prod-vpc.id
+
+  tags = {
+    Name = "test-igw"
+  }
+}
+
+
+##this is public subnet
+resource "aws_subnet" "public-subnet" {
+  vpc_id     = aws_vpc.prod-vpc.id
+  cidr_block = "10.0.0.0/24"
+
+  tags = {
+    name = "public-subnet"
+
+  }
+}
+
+##this is private subnet
+resource "aws_subnet" "private-subnet" {
+  vpc_id     = aws_vpc.prod-vpc.id
+  cidr_block = "10.0.1.0/24"
+
+  tags = {
+    name = "private-subnet"
+  }
+}
+##security group
+resource "aws_security_group" "terraform-sg" {
+  name        = "terraform-sg"
+  vpc_id      = aws_vpc.prod-vpc.id
+  description = "allow ssh and http"
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+##public route table
+resource "aws_route_table" "public-rt" {
+  vpc_id = aws_vpc.prod-vpc.id
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.test-igw.id
+  }
+  tags = {
+    Name = "public-rt"
+  }
+}
+
+##ec2 code
+resource "aws_instance" "shiva-server" {
+  ami             = "ami-0341d95f75f311023"
+  subnet_id       = aws_subnet.public-subnet.id
+  instance_type   = "t3.micro"
+  security_groups = ["${aws_security_group.terraform-sg.id}"]
+  key_name        = "terra-key"
+  tags = {
+    Name = "test-World"
+  }
+
+}
+##EIP code
+resource "aws_eip" "shiva-ec2-eip" {
+  instance = aws_instance.shiva-server.id
+}
+
+##ssh key pair
+resource "aws_key_pair" "terra-key" {
+  key_name   = "terra-key"
+  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQClDHaokyYnsw+fqf17+T+Aeg5uxKLtM643Av+i02rvkPoNQCOImjmUXdWPvWjpDMR8b5e+VgowFMoIfI3gl8LmOsmZFxox5tjzcGrfpofmtDYXcaBKP9WmJoIsFn6vLE7pezh01rYalZkWCMAuz6TZju9pz14vTUhrXcCWRAQk5avsGnw/7+wyszQXIkCT/5yAyLACo23+9Nj9F8vp4j094lvobjpHG2yLPmdr5M6zuJHdFNZba4AKPzrgUrv7j1wHW6QlWrjmKDDwM34NSCnC+/I90nZ0XHhavcZOA7RPx5Iekua6kG2F5w+7QE/lnj+7RDUUhZgWXytWAFmG3w0thm2/cM7iRvbAlYp0WEy/tagzmROsRW9GaHkkQeOWQwa4zyVN7IVgX7GQZcEbrOr3icYD3fy+nPjMQ7hl6zF64o4+/pDD6bXFgexKR/kFb4FVb5TZNjwSYW7jLyBL55ebRkeD0MO1NxHsq2xeiS3ZMUPup/WkLs+EPUnLsugcDaM= root@terra.example.com"
+}
+
+##create a public ip for Nat gateway
+resource "aws_eip" "nat-eip" {
+}
+
+### create Nat gateway
+resource "aws_nat_gateway" "my-ngw" {
+  allocation_id = aws_eip.nat-eip.id
+  subnet_id     = aws_subnet.public-subnet.id
+}
+
+##private route table
+resource "aws_route_table" "private-rt" {
+  vpc_id = aws_vpc.prod-vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_nat_gateway.my-ngw.id
+  }
+
+
+  tags = {
+    Name = "private-rt"
+  }
+}
+
+##route Table assosication code
+resource "aws_route_table_association" "private-asso" {
+  subnet_id      = aws_subnet.private-subnet.id
+  route_table_id = aws_route_table.private-rt.id
+}
+
+
+#####################################################################################################################
+dynamic sg
+########################################################################################################
+
+
+resource "aws_security_group" "Jenkins-VM-SG" {
+  name        = "Jenkins-VM-SG"
+  description = "Allow TLS inbound traffic"
+
+  ingress = [
+    for port in [22, 80, 443, 8080, 9000, 3000, 8081, 8082] : {
+      description      = "inbound rules"
+      from_port        = port
+      to_port          = port
+      protocol         = "tcp"
+      cidr_blocks      = ["0.0.0.0/0"]
+      ipv6_cidr_blocks = []
+      prefix_list_ids  = []
+      security_groups  = []
+      self             = false
+    }
+  ]
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "Jenkins-VM-SG"
+  }
+}
+
+resource "aws_instance" "web-server" {
+  ami               = "ami-0447a12f28fddb066"
+  availability_zone = "us-east-1a"
+  instance_type     = "t3.micro"
+  security_groups   = ["${aws_security_group.Jenkins-VM-SG.name}"]
+  tags = {
+    Name     = "hello-World"
+    Stage    = "testing"
+    Location = "INDIA"
+  }
+
+}
